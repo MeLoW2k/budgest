@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Budgest</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--ink:#1d1d1f;--mut:#4a4a52;--blue:#0a62d6}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",sans-serif;color:var(--ink);
+background:radial-gradient(600px 400px at 8% 8%,#9ec5ff,transparent 70%),radial-gradient(500px 400px at 94% 16%,#ffb8d9,transparent 70%),radial-gradient(600px 500px at 72% 100%,#9be8cf,transparent 70%),radial-gradient(500px 400px at 0% 94%,#ffd7a1,transparent 70%),#eef1f8;background-attachment:fixed}
+[hidden]{display:none!important}
+.g{background:rgba(255,255,255,.5);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid rgba(255,255,255,.75);box-shadow:0 10px 40px rgba(40,50,110,.12),inset 0 1px 0 rgba(255,255,255,.95);border-radius:28px;padding:28px}
+.wrap{max-width:1200px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:20px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cols{display:flex;gap:20px;flex-wrap:wrap}
+.t{font-size:13px;color:var(--mut)}
+h1,h2{margin:0;letter-spacing:-.02em}h2{font-size:19px;font-weight:600}
+label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:#3a3a42}
+input,select{height:48px;border-radius:14px;border:1px solid rgba(60,60,80,.25);background:rgba(255,255,255,.65);padding:0 14px;font-size:16px;font-family:inherit;width:100%;color:var(--ink)}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+button{font-family:inherit;cursor:pointer}
+.btn{border:0;border-radius:99px;background:var(--blue);color:#fff;font-weight:600;font-size:15px;padding:0 22px;min-height:46px}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.alt{background:rgba(255,255,255,.7);color:var(--ink);border:1px solid rgba(60,60,80,.2)}
+.seg{display:flex;padding:4px;border-radius:99px;background:rgba(60,60,80,.1)}
+.seg button{flex:1;border:0;border-radius:99px;background:transparent;font-weight:600;font-size:14px;min-height:40px;color:#3a3a42}
+.seg .on{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12);color:var(--ink)}
+.bar{height:8px;border-radius:99px;background:rgba(60,60,80,.14);overflow:hidden}.bar i{display:block;height:100%;border-radius:99px;background:var(--blue)}
+.chip{flex:1 1 130px;padding:14px 18px;border-radius:20px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.8)}
+.chip b{font-size:21px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px}
+.tx{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(60,60,80,.1)}
+.tx:last-child{border:0}
+.x{border:0;background:transparent;color:var(--mut);font-size:20px;min-width:44px;min-height:44px}
+.err{color:#b3261e;font-size:14px;margin:0;min-height:18px}
+.ok{color:#1a7f4b}
+#auth{min-height:100vh;display:flex;align-items:center}
+</style>
+</head>
+<body>
+
+<!-- ===== Connexion / création de compte ===== -->
+<main id="auth">
+<div class="wrap" style="flex-direction:row;gap:56px;align-items:center;justify-content:center;width:100%">
+  <div style="flex:1 1 340px;display:flex;flex-direction:column;gap:18px">
+    <div style="font-size:22px;font-weight:700;letter-spacing:-.03em">Budgest</div>
+    <h1 style="font-size:clamp(38px,6vw,56px);line-height:1.05;font-weight:700;letter-spacing:-.04em">Gardez le cap sur vos dépenses.</h1>
+    <p style="margin:0;font-size:18px;color:#3a3a42;line-height:1.5">Suivez vos dépenses, fixez votre budget du mois et gardez vos données pour vous.</p>
+  </div>
+  <form id="authForm" class="g" style="flex:0 1 440px;width:100%;display:flex;flex-direction:column;gap:16px;padding:32px" novalidate>
+    <div class="seg"><button type="button" id="tabS" class="on">Créer un compte</button><button type="button" id="tabL">Connexion</button></div>
+    <label id="nameW">Prénom<input id="name" type="text" autocomplete="given-name" placeholder="Camille"></label>
+    <label>Adresse e-mail<input id="email" type="email" autocomplete="email" placeholder="camille@exemple.fr"></label>
+    <label>Mot de passe<input id="pass" type="password" autocomplete="new-password" placeholder="8 caractères minimum"></label>
+    <p class="err" id="err" role="alert"></p>
+    <button class="btn" id="submit" style="min-height:50px;font-size:16px">Créer mon compte</button>
+    <p class="t" style="margin:0;line-height:1.4">Chaque compte n’accède qu’à ses propres dépenses et budgets.</p>
+  </form>
+</div>
+</main>
+
+<!-- ===== Application ===== -->
+<div id="app" class="wrap" hidden>
+  <header class="g row" style="padding:10px 14px 10px 24px;border-radius:99px">
+    <div style="font-size:22px;font-weight:700;letter-spacing:-.03em">Budgest</div>
+    <div class="row"><span id="hello" style="font-weight:500"></span>
+      <button class="btn alt" id="adminBtn" hidden>Administration</button>
+      <button class="btn alt" id="logout">Se déconnecter</button></div>
+  </header>
+
+  <div id="mainView" class="wrap" style="padding:0">
+  <div class="cols">
+    <section class="g" style="flex:2 1 520px;display:flex;flex-direction:column;gap:18px;padding:32px">
+      <div class="t" id="month"></div>
+      <div style="font-size:clamp(44px,8vw,60px);font-weight:700;letter-spacing:-.04em;line-height:1" id="left"></div>
+      <div class="t" id="leftSub"></div>
+      <div class="bar"><i id="barFill" style="width:0"></i></div>
+      <div class="cols" style="gap:12px">
+        <div class="chip"><div class="t">Revenus</div><b id="inc"></b></div>
+        <div class="chip"><div class="t">Dépenses</div><b id="exp"></b></div>
+        <div class="chip"><label>Budget du mois (€)<input id="budget" type="number" min="0" step="10"></label></div>
+      </div>
+    </section>
+    <section class="g" style="flex:1 1 300px;display:flex;flex-direction:column;gap:16px">
+      <h2>Par catégorie</h2>
+      <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
+        <div id="donut" style="width:140px;height:140px;border-radius:50%;display:flex;align-items:center;justify-content:center"><div style="width:96px;height:96px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;flex-direction:column;align-items:center;justify-content:center"><b id="donutN"></b><span class="t">dépensés</span></div></div>
+        <div id="legend" style="display:flex;flex-direction:column;gap:8px;font-size:14px"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="cols">
+    <form id="txForm" class="g" style="flex:1 1 320px;display:flex;flex-direction:column;gap:14px;align-self:flex-start">
+      <h2>Ajouter une opération</h2>
+      <label>Type<select id="type"><option value="out">Dépense</option><option value="in">Revenu</option></select></label>
+      <label>Description<input id="label" type="text" required maxlength="120" placeholder="Supermarché"></label>
+      <label>Montant (€)<input id="amount" type="number" min="0.01" step="0.01" required placeholder="42,30"></label>
+      <label>Catégorie<select id="cat"></select></label>
+      <label>Date<input id="date" type="date" required></label>
+      <p class="err" id="txErr" role="alert"></p>
+      <button class="btn">Ajouter</button>
+    </form>
+    <section class="g" style="flex:1.6 1 440px">
+      <h2 style="margin-bottom:8px">Opérations du mois</h2>
+      <div id="list"></div>
+    </section>
+  </div>
+  </div>
+
+  <section id="adminView" class="g" hidden>
+    <div class="row" style="margin-bottom:12px"><h2>Comptes créés</h2><span class="t" id="adminCount"></span></div>
+    <p class="t" style="margin:0 0 8px">Vous voyez la liste des comptes, pas leurs dépenses : elles restent privées.</p>
+    <div id="adminList"></div>
+  </section>
+</div>
+
+<script>
+/* ============ À REMPLIR : Supabase > Connect (URL du projet + clé publique) ============ */
+const SUPABASE_URL = "https://thbqmbmrwyqddqtqabke.supabase.co";
+const SUPABASE_KEY = "sb_publishable_lKBKr0VPDV415p9tROg4MA_2l7RnHs6";
+/* ======================================================================================== */
+
+const CATS={Logement:"#0a62d6",Courses:"#6b4fd8",Loisirs:"#c25a00",Transports:"#1a7f4b",Autre:"#8a8a93"};
+const $=s=>document.querySelector(s);
+const eur=n=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(n);
+const sum=a=>a.reduce((s,t)=>s+t.amount,0);
+const todayStr=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+let mode="signup", sb=null, me=null, budget=2000, txs=[];
+
+if(SUPABASE_URL.startsWith("COLLE")){
+  $("#err").textContent="Configuration manquante : renseignez SUPABASE_URL et SUPABASE_KEY dans index.html.";
+  $("#submit").disabled=true;
+}else{
+  sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+}
+
+/* ---------- Authentification ---------- */
+function setMode(m){
+  mode=m; $("#tabS").classList.toggle("on",m==="signup"); $("#tabL").classList.toggle("on",m==="login");
+  $("#nameW").hidden=m==="login"; $("#submit").textContent=m==="signup"?"Créer mon compte":"Se connecter";
+  $("#pass").autocomplete=m==="signup"?"new-password":"current-password"; $("#err").textContent="";
+}
+$("#tabS").onclick=()=>setMode("signup"); $("#tabL").onclick=()=>setMode("login");
+
+const authErr=m=>/Invalid login/i.test(m)?"E-mail ou mot de passe incorrect.":/already registered/i.test(m)?"Un compte existe déjà avec cet e-mail. Connectez-vous.":/Email not confirmed/i.test(m)?"Confirmez d’abord votre adresse e-mail (lien reçu par e-mail).":/rate limit/i.test(m)?"Trop de tentatives. Réessayez dans quelques minutes.":m;
+
+$("#authForm").onsubmit=async e=>{
+  e.preventDefault(); if(!sb) return;
+  const email=$("#email").value.trim().toLowerCase(), pass=$("#pass").value, name=$("#name").value.trim(), err=$("#err");
+  err.className="err";
+  if(!/^\S+@\S+\.\S+$/.test(email)) return err.textContent="Entrez une adresse e-mail valide.";
+  if(pass.length<8) return err.textContent="Le mot de passe doit contenir au moins 8 caractères.";
+  if(mode==="signup"&&!name) return err.textContent="Entrez votre prénom.";
+  $("#submit").disabled=true; err.textContent="";
+  const {data,error}=mode==="signup"
+    ? await sb.auth.signUp({email,password:pass,options:{data:{name}}})
+    : await sb.auth.signInWithPassword({email,password:pass});
+  $("#submit").disabled=false;
+  if(error) return err.textContent=authErr(error.message);
+  if(!data.session){ err.className="err ok"; return err.textContent="Compte créé. Cliquez sur le lien reçu par e-mail pour le confirmer, puis connectez-vous."; }
+  start(data.session.user);
+};
+$("#logout").onclick=async()=>{await sb.auth.signOut();location.reload()};
+
+/* ---------- Application ---------- */
+function monthRange(){
+  const d=new Date(), y=d.getFullYear(), m=d.getMonth();
+  const p=n=>String(n).padStart(2,"0"), next=new Date(y,m+1,1);
+  return [`${y}-${p(m+1)}-01`,`${next.getFullYear()}-${p(next.getMonth()+1)}-01`];
+}
+async function start(user){
+  me=user; $("#auth").hidden=true; $("#app").hidden=false;
+  $("#cat").innerHTML=Object.keys(CATS).map(c=>`<option>${c}</option>`).join("");
+  $("#date").value=todayStr();
+  const {data:p}=await sb.from("profiles").select("name,is_admin").eq("id",user.id).maybeSingle();
+  $("#hello").textContent="Bonjour "+((p&&p.name)||user.user_metadata?.name||"");
+  $("#adminBtn").hidden=!(p&&p.is_admin);
+  const {data:b}=await sb.from("budgets").select("amount").maybeSingle();
+  if(b) budget=Number(b.amount);
+  await loadTx(); render();
+}
+async function loadTx(){
+  const [a,z]=monthRange();
+  const {data,error}=await sb.from("transactions").select("*").gte("date",a).lt("date",z).order("date",{ascending:false});
+  txs=(data||[]).map(t=>({...t,amount:Number(t.amount)}));
+  if(error) $("#txErr").textContent="Chargement impossible : "+error.message;
+}
+function render(){
+  const out=txs.filter(t=>t.type==="out"), inc=sum(txs.filter(t=>t.type==="in")), exp=sum(out), b=budget;
+  $("#month").textContent=new Date().toLocaleDateString("fr-FR",{month:"long",year:"numeric"})+" · Reste à dépenser";
+  $("#left").textContent=eur(b-exp);
+  $("#leftSub").textContent=b?`sur un budget de ${eur(b)} — ${Math.round(exp/b*100)} % utilisé`:"Définissez un budget pour le mois.";
+  $("#barFill").style.width=Math.min(100,b?exp/b*100:0)+"%";
+  $("#barFill").style.background=exp>b&&b?"#b3261e":"";
+  $("#inc").textContent="+ "+eur(inc); $("#exp").textContent="− "+eur(exp); $("#budget").value=b;
+  $("#donutN").textContent=eur(exp);
+  const by=Object.keys(CATS).map(c=>[c,sum(out.filter(t=>t.category===c))]).filter(x=>x[1]>0);
+  let acc=0; const stops=by.map(([c,v])=>{const s=acc;acc+=v/exp*100;return `${CATS[c]} ${s}% ${acc}%`});
+  $("#donut").style.background=by.length?`conic-gradient(${stops.join(",")})`:"rgba(60,60,80,.14)";
+  $("#legend").innerHTML=by.length?by.map(([c,v])=>`<div><i class="dot" style="background:${CATS[c]}"></i>${c} · ${eur(v)}</div>`).join(""):'<span class="t">Aucune dépense ce mois-ci.</span>';
+  const L=$("#list"); L.innerHTML="";
+  if(!txs.length) L.innerHTML='<p class="t">Ajoutez votre première opération avec le formulaire.</p>';
+  txs.forEach(t=>{
+    const r=document.createElement("div"); r.className="tx";
+    const d=document.createElement("div"), n=document.createElement("div"), s=document.createElement("div");
+    n.style.fontWeight=500; n.textContent=t.label; s.className="t";
+    s.textContent=t.category+" · "+new Date(t.date+"T00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
+    d.append(n,s);
+    const a=document.createElement("b"); a.textContent=(t.type==="in"?"+ ":"− ")+eur(t.amount); if(t.type==="in") a.style.color="#1a7f4b";
+    const x=document.createElement("button"); x.className="x"; x.textContent="×"; x.setAttribute("aria-label","Supprimer "+t.label);
+    x.onclick=async()=>{const {error}=await sb.from("transactions").delete().eq("id",t.id);
+      if(error) return $("#txErr").textContent=error.message; txs=txs.filter(z=>z.id!==t.id); render()};
+    const right=document.createElement("div"); right.className="row"; right.style.flexWrap="nowrap"; right.append(a,x);
+    r.append(d,right); L.append(r);
+  });
+}
+$("#budget").onchange=async e=>{
+  const v=Math.max(0,+e.target.value||0);
+  const {error}=await sb.from("budgets").upsert({user_id:me.id,amount:v});
+  if(error) return $("#txErr").textContent=error.message; budget=v; render();
+};
+$("#txForm").onsubmit=async e=>{
+  e.preventDefault(); $("#txErr").textContent="";
+  const amount=parseFloat($("#amount").value), label=$("#label").value.trim();
+  if(!label||!(amount>0)) return $("#txErr").textContent="Renseignez une description et un montant positif.";
+  const row={type:$("#type").value,label,amount,category:$("#cat").value,date:$("#date").value};
+  const {error}=await sb.from("transactions").insert(row);
+  if(error) return $("#txErr").textContent="Ajout impossible : "+error.message;
+  e.target.reset(); $("#date").value=todayStr(); await loadTx(); render();
+};
+
+/* ---------- Administration (comptes uniquement, jamais les dépenses) ---------- */
+$("#adminBtn").onclick=async()=>{
+  const on=$("#adminView").hidden; $("#adminView").hidden=!on; $("#mainView").hidden=on;
+  $("#adminBtn").textContent=on?"Retour":"Administration"; if(!on) return;
+  const {data,error}=await sb.from("profiles").select("email,name,created_at,is_admin").order("created_at",{ascending:false});
+  const L=$("#adminList"); L.innerHTML=""; if(error) return L.textContent=error.message;
+  $("#adminCount").textContent=data.length+" compte"+(data.length>1?"s":"");
+  data.forEach(u=>{
+    const r=document.createElement("div"); r.className="tx";
+    const d=document.createElement("div"), n=document.createElement("div"), s=document.createElement("div");
+    n.style.fontWeight=500; n.textContent=(u.name||"—")+(u.is_admin?" (admin)":""); s.className="t"; s.textContent=u.email;
+    d.append(n,s);
+    const c=document.createElement("span"); c.className="t"; c.textContent="Inscrit le "+new Date(u.created_at).toLocaleDateString("fr-FR");
+    r.append(d,c); L.append(r);
+  });
+};
+
+/* ---------- Session existante ---------- */
+if(sb) sb.auth.getSession().then(({data})=>{if(data.session) start(data.session.user)});
+</script>
+</body>
+</html>
